@@ -1,0 +1,61 @@
+{# Target Table Location and Name #}
+{% set tableTargetLocationName = node.location.name %}
+{% set tableTargetDatabaseName = storageLocations | selectattr('name', 'equalto', tableTargetLocationName) | map(attribute='database') | first %}
+{% set tableTargetSchemaName = storageLocations | selectattr('name', 'equalto', tableTargetLocationName) | map(attribute='schema') | first %}
+{% set title = parameters.title %}
+{% set version = parameters.version %}
+
+{% set targetTableName = '"PREP' + '_' + title + '_' + version + '"' %}
+{% set fullyQualifiedTargetTableName = '"' + tableTargetDatabaseName + '"."' + tableTargetSchemaName + '".' + targetTableName %}
+
+{% if version == 'V1' %}
+	{% set repVal = 'V1' %}
+{% else %}
+	{% set repVal = 'V2' %}
+{% endif %}
+
+{% set actualSource = sources[0].join | replace(repVal,title) %}
+
+{% if config.preSQL %}
+	{{ stage('Pre-SQL') }}
+	{{ config.preSQL }}
+{% endif %}
+		
+{{ stage( config.insertStrategy + ' Sources' | string ) }}
+CREATE OR REPLACE TRANSIENT TABLE {{ fullyQualifiedTargetTableName }}
+AS
+
+SELECT
+{% for col in sources[0].columns %}
+	{{ get_source_transform(col) | replace(repVal,title) }} AS "{{ col.name }}"
+	{%- if not loop.last -%}, {% endif %}
+{% endfor %}
+
+{{ actualSource }}
+
+{% if config.insertStrategy in ['UNION', 'UNION ALL'] and not loop.last %}
+	{{config.insertStrategy}}
+{% endif %}
+
+
+	
+	{% if config.postSQL %}
+		{{ stage('Post-SQL') }}
+		{{ config.postSQL }}
+	{% endif %}
+
+{% if config.testsEnabled %}
+	{% for test in node.tests %}
+		{% if test.runOrder == 'After' %}
+			{{ test_stage(test.name, test.continueOnFailure) }}
+			{{ test.templateString }}
+        {% endif %}
+	{% endfor %}
+
+	{% for column in columns %}
+		{% for test in column.tests %}
+			{{ test_stage(column.name + ": " + test.name) }}
+			{{ test.templateString }}
+		{% endfor %}
+	{% endfor %}
+{% endif %}

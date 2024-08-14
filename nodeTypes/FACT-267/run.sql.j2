@@ -1,0 +1,128 @@
+{# Target Table Location and Name #}
+{% set tableSourceLocationName = sources[0].dependencies[0].node.location.name %}
+{% set tableSourceDatabaseName = storageLocations | selectattr('name', 'equalto', tableSourceLocationName) | map(attribute='database') | first %}
+{% set tableSourceSchemaName = storageLocations | selectattr('name', 'equalto', tableSourceLocationName) | map(attribute='schema') | first %}
+{% set title = parameters.title %}
+{% set version = parameters.version %}
+
+{% set actualSource = 'PREP' + '_' + title + '_' + version %}
+{% set fullyQualifiedSourceTableName = '"' + tableSourceDatabaseName + '"."' + tableSourceSchemaName + '"."' + actualSource + '"' %}
+
+{% if version == 'V1' %}
+	{% set repVal = 'PREP_V1' %}
+{% else %}
+	{% set repVal = 'PREP_V2' %}
+{% endif %}
+
+{% set sourceJoin = sources[0].join | replace(repVal, actualSource) %}
+
+
+{% for test in node.tests if config.testsEnabled %}
+    {% if test.runOrder == 'Before' %}
+        {{ test_stage(test.name, test.continueOnFailure) }}
+        {{ test.templateString }}
+    {% endif %}
+{% endfor %}
+
+{% if config.preSQL %}
+    {{ stage('Pre-SQL') }}
+    {{ config.preSQL }}
+{% endif %}
+    
+{% set has_business_key = columns | selectattr("isBusinessKey") | list | length > 0 %}
+                
+{% if has_business_key %}
+
+    {{ stage('MERGE ' + sources[0].name | string ) }}
+    MERGE INTO {{ ref_no_link(node.location.name, node.name) }} "TGT"
+    USING (
+        SELECT
+        {% for col in sources[0].columns %}
+            {{ get_source_transform(col) | replace(repVal, actualSource) }} AS "{{ col.name }}"
+            {%- if not loop.last %}, {% endif %}
+        {% endfor %}
+        {{ sourceJoin }})
+        AS "SRC"
+    ON
+    {% for col in sources[0].columns if col.isBusinessKey -%}
+        {% if not loop.first %}
+            AND
+        {% endif %}
+        "SRC"."{{ col.name }}" = "TGT"."{{ col.name }}"
+    {% endfor %}
+    WHEN MATCHED
+    {% for col in sources[0].columns if not (   col.isBusinessKey or
+                                            col.isSystemUpdateDate or
+                                            col.isSystemCreateDate) %}
+        {% if loop.first %}
+            AND (
+        {% else %}
+            OR
+        {% endif %}
+        NVL( CAST("SRC"."{{ col.name }}" as STRING), '**NULL**') <> NVL( CAST("TGT"."{{ col.name }}" as STRING), '**NULL**')
+        {% if loop.last %}
+            )
+        {% endif %}
+    {% endfor %}
+    THEN UPDATE SET
+    {%- for col in sources[0].columns if not (col.isBusinessKey or col.isSystemCreateDate) %}
+            "TGT"."{{ col.name }}" = "SRC"."{{ col.name }}"
+        {% if not loop.last %}, {% endif %}
+    {% endfor %}
+    WHEN NOT MATCHED THEN
+    INSERT (
+    {%- for col in sources[0].columns if not col.isSurrogateKey %}
+        "{{ col.name }}"
+        {% if not loop.last %}, {% endif %}
+    {% endfor -%}
+    )
+    VALUES (
+    {%- for col in sources[0].columns if not col.isSurrogateKey %}
+        "SRC"."{{ col.name }}"
+        {% if not loop.last %}, {% endif %}
+    {% endfor -%}
+    )
+
+{% else %}
+
+    {{ stage('Insert ' + sources[0].name | string ) }}
+
+        INSERT INTO {{ ref_no_link(node.location.name, node.name) }}
+        (
+            {% for col in sources[0].columns %}
+                "{{ col.name }}"
+                {%- if not loop.last -%},{% endif %}
+            {% endfor %}
+        )
+
+        SELECT
+        {% for col in sources[0].columns %}
+            {{ get_source_transform(col) | replace(repVal, actualSource) }} AS "{{ col.name }}"
+            {%- if not loop.last -%}, {% endif %}
+        {% endfor %}
+        {{ sourceJoin }}
+{% endif %}
+
+{% if config.postSQL %}
+    {{ stage('Post-SQL') }}
+    {{ config.postSQL }}
+{% endif %}
+
+{% if config.testsEnabled %}
+    {% for test in node.tests %}
+        {% if test.runOrder == 'After' %}
+            {{ test_stage(test.name, test.continueOnFailure) }}
+            {{ test.templateString }}
+        {% endif %}
+    {% endfor %}
+
+    {% for column in columns %}
+        {% for test in column.tests %}
+            {{ test_stage(column.name + ": " + test.name) }}
+            {{ test.templateString }}
+        {% endfor %}
+    {% endfor %}
+{% endif %}
+
+{{ stage('Table Clean Up - Drop ' + actualSource ) }}
+DROP TABLE IF EXISTS {{ fullyQualifiedSourceTableName }}

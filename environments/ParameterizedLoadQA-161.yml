@@ -1,0 +1,14 @@
+fileVersion: 1
+id: "161"
+mappingDefinitions:
+  PREP:
+    database: JG_PARAMETERIZED_LOAD_QA
+    schema: PREP
+  RAW:
+    database: JG_PARAMETERIZED_LOAD_QA
+    schema: RAW
+  TGT:
+    database: JG_PARAMETERIZED_LOAD_QA
+    schema: TARGET
+name: Parameterized Load QA
+type: Environment
