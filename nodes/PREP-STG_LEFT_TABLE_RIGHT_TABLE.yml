@@ -73,62 +73,6 @@ operation:
               - columnCounter: 72e0e7e1-7d15-4c80-a677-5ebff634473a
                 stepCounter: 9410f1fc-07f1-4fec-a344-7a1f31c3d372
             transform: ""
-      - appliedColumnTests: {}
-        columnReference:
-          columnCounter: 896a9851-2d67-479f-acf7-e3b1c2430ef4
-          stepCounter: bfaa755b-ce62-47dd-8630-bb3bb408324d
-        config: {}
-        dataType: VARCHAR(1)
-        description: ""
-        name: C1
-        nullable: true
-        sourceColumnReferences:
-          - columnReferences:
-              - columnCounter: 473ec469-0dd4-4f60-bf3a-078c07dbae63
-                stepCounter: 28fd7ec2-a1a3-4b50-bb4a-63bf3029a278
-            transform: ""
-      - appliedColumnTests: {}
-        columnReference:
-          columnCounter: bc130903-8591-4dfd-a3d2-696d811f2ab7
-          stepCounter: bfaa755b-ce62-47dd-8630-bb3bb408324d
-        config: {}
-        dataType: NUMBER(38,0)
-        description: ""
-        name: C2
-        nullable: true
-        sourceColumnReferences:
-          - columnReferences:
-              - columnCounter: cb888d3b-bbf1-4771-ae30-545f4a5f124f
-                stepCounter: 28fd7ec2-a1a3-4b50-bb4a-63bf3029a278
-            transform: ""
-      - appliedColumnTests: {}
-        columnReference:
-          columnCounter: 330e6954-7ae1-44ac-bf4e-f95cfbf85ae4
-          stepCounter: bfaa755b-ce62-47dd-8630-bb3bb408324d
-        config: {}
-        dataType: TIME(9)
-        description: ""
-        name: C3
-        nullable: true
-        sourceColumnReferences:
-          - columnReferences:
-              - columnCounter: d292e1b1-348c-4082-831e-55f8d04cf81f
-                stepCounter: 28fd7ec2-a1a3-4b50-bb4a-63bf3029a278
-            transform: ""
-      - appliedColumnTests: {}
-        columnReference:
-          columnCounter: 7a7f2f44-180d-40c6-b4cb-a2cae7bd4c69
-          stepCounter: bfaa755b-ce62-47dd-8630-bb3bb408324d
-        config: {}
-        dataType: NUMBER(3,2)
-        description: ""
-        name: C4
-        nullable: true
-        sourceColumnReferences:
-          - columnReferences:
-              - columnCounter: c0113d59-a5af-415f-9a1d-ebd444fcdf3e
-                stepCounter: 28fd7ec2-a1a3-4b50-bb4a-63bf3029a278
-            transform: ""
     cteString: ""
     enabledColumnTestIDs: []
     sourceMapping:
@@ -147,7 +91,7 @@ operation:
 
             FROM {{ ref('RAW', 'LEFT_TABLE') }} "LEFT_TABLE"
             ASOF JOIN {{ ref('RAW', 'RIGHT_TABLE') }} "RIGHT_TABLE"
-            MATCH_CONDITION("LEFT_TABLE". > "RIGHT_TABLE".c3)
+            MATCH_CONDITION("LEFT_TABLE".c3 > "RIGHT_TABLE".c3)
             ON("LEFT_TABLE".c1 = "RIGHT_TABLE".c1 and "LEFT_TABLE".c2 = "RIGHT_TABLE".c2)
             ORDER BY "LEFT_TABLE".c1, "LEFT_TABLE".c2;
         name: STG_LEFT_TABLE_RIGHT_TABLE

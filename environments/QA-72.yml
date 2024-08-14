@@ -1,0 +1,14 @@
+fileVersion: 1
+id: "72"
+mappingDefinitions:
+  PREP:
+    database: CROOD_QA
+    schema: DWH
+  RAW:
+    database: JG_PARAMETERIZED_LOAD
+    schema: RAW
+  TGT:
+    database: CROOD_QA
+    schema: DWH
+name: QA
+type: Environment
